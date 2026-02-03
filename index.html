@@ -240,22 +240,27 @@
                     const ctx = document.getElementById('trendChart').getContext('2d');
                     if(this.chart) this.chart.destroy();
 
-                    const last6Months = [];
-                    for(let i=5; i>=0; i--) {
+                    // Diubah menjadi 4 bulan saja agar lebih lega di HP
+                    const last4Months = [];
+                    for(let i=3; i>=0; i--) {
                         const d = new Date(); d.setMonth(d.getMonth() - i);
                         const shortYear = d.getFullYear().toString().substring(2);
-                        last6Months.push({ m: d.getMonth(), y: d.getFullYear(), label: `${this.monthNames[d.getMonth()].substring(0,3)} '${shortYear}` });
+                        last4Months.push({ 
+                            m: d.getMonth(), 
+                            y: d.getFullYear(), 
+                            label: `${this.monthNames[d.getMonth()].substring(0,3)} '${shortYear}` 
+                        });
                     }
-                    this.chartMonths = last6Months;
+                    this.chartMonths = last4Months;
 
-                    const masukData = last6Months.map(slot => {
+                    const masukData = last4Months.map(slot => {
                         return this.allData.filter(i => {
                             const d = new Date(i.tanggal);
                             return d.getMonth() === slot.m && d.getFullYear() === slot.y && i.jenis === 'Pemasukan';
                         }).reduce((acc, curr) => acc + Number(curr.jumlah), 0);
                     });
 
-                    const keluarData = last6Months.map(slot => {
+                    const keluarData = last4Months.map(slot => {
                         return this.allData.filter(i => {
                             const d = new Date(i.tanggal);
                             return d.getMonth() === slot.m && d.getFullYear() === slot.y && i.jenis === 'Pengeluaran';
@@ -272,26 +277,26 @@
                     this.chart = new Chart(ctx, {
                         type: 'bar',
                         data: {
-                            labels: last6Months.map(s => s.label),
+                            labels: last4Months.map(s => s.label),
                             datasets: [
-                                { label: 'Masuk', data: masukData, backgroundColor: '#10b981', borderRadius: 6, barPercentage: 0.85 },
-                                { label: 'Keluar', data: keluarData, backgroundColor: '#f43f5e', borderRadius: 6, barPercentage: 0.85 }
+                                { label: 'Masuk', data: masukData, backgroundColor: '#10b981', borderRadius: 6, barPercentage: 0.7, categoryPercentage: 0.7 },
+                                { label: 'Keluar', data: keluarData, backgroundColor: '#f43f5e', borderRadius: 6, barPercentage: 0.7, categoryPercentage: 0.7 }
                             ]
                         },
                         options: {
                             responsive: true, maintainAspectRatio: false,
-                            layout: { padding: { bottom: 0 } },
+                            layout: { padding: { bottom: 0, top: 20 } },
                             plugins: {
                                 legend: { display: false },
                                 datalabels: {
                                     anchor: 'end', align: 'top',
                                     formatter: (v) => formatSimple(v),
-                                    font: { weight: '900', size: 9 },
+                                    font: { weight: '900', size: 10 },
                                     color: (c) => c.datasetIndex === 0 ? '#059669' : '#e11d48'
                                 }
                             },
                             scales: { 
-                                y: { display: false, beginAtZero: true, grace: '20%' },
+                                y: { display: false, beginAtZero: true, grace: '25%' },
                                 x: { grid: { display: false }, ticks: { display: false } } 
                             }
                         }
