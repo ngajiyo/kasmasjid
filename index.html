@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Transaksi Masjid Al Ikhlas Jasem</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        [x-cloak] { display: none !important; }
+        .sticky-summary { position: sticky; top: 0.75rem; z-index: 40; }
+        .img-thumbnail { width: 100%; max-height: 200px; object-fit: cover; border-radius: 1.5rem; cursor: pointer; }
+        .card-interactive { transition: all 0.2s ease; cursor: pointer; user-select: none; }
+        .card-interactive:active { transform: scale(0.95); filter: brightness(0.9); }
+        .notification-toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 200; }
+        .fullscreen-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; padding: 20px; }
+        
+        .month-selector-grid { display: flex; justify-content: space-around; margin-top: -5px; padding-bottom: 5px; }
+        .month-btn { flex: 1; text-align: center; padding: 10px 0; font-size: 9px; font-weight: 900; color: #64748b; text-transform: uppercase; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+        .month-btn:active { transform: scale(0.9); }
+        .month-btn.active-month { color: #10b981; position: relative; }
+        .month-btn.active-month::after { content: ''; position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; background: #10b981; border-radius: 50%; }
+    </style>
+</head>
+<body x-data="dashboard()">
+
+    <div x-show="showToast" class="notification-toast bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl text-xs font-black uppercase tracking-widest border border-white/20" x-cloak x-transition>
+        🔓 Mode Ubah Diaktifkan
+    </div>
+
+    <div x-show="showFullscreen" class="fullscreen-overlay" x-cloak @click="showFullscreen = false" x-transition>
+        <img :src="selectedItem.nota_url" class="max-w-full max-h-full rounded-lg shadow-2xl">
+    </div>
+
+    <div class="max-w-md md:max-w-4xl mx-auto p-4 pb-24">
+        <header class="mb-5 flex justify-between items-end px-1">
+            <div>
+                <p class="text-[9px] text-slate-400 font-black uppercase tracking-[0.3em] mb-0.5">Laporan Keuangan</p>
+                <h1 class="text-xl font-[900] text-slate-900 tracking-tight">INFAQ JUM'AT MASJID AL IKHLAS JASEM</h1>
+            </div>
+            <button @click="fetchData()" class="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 active:scale-90 transition-transform">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+            </button>
+        </header>
+
+        <div class="sticky-summary">
+            <div :class="isAdmin ? 'bg-slate-900' : 'bg-emerald-700'" class="rounded-[2.5rem] p-6 shadow-xl text-white relative border border-white/10 transition-colors duration-500">
+                <div class="text-center card-interactive" @click="handleSecretClick()">
+                    <p class="text-[10px] opacity-70 uppercase font-black tracking-widest mb-1">Total Saldo Infaq</p>
+                    <h2 class="text-4xl font-[900] tracking-tight mb-4" x-text="formatRupiah(totals.saldo)"></h2>
+                    <div class="grid grid-cols-2 gap-4 mt-2 pt-4 border-t border-white/10">
+                        <div>
+                            <p class="text-[9px] opacity-60 uppercase font-black mb-1">Total Masuk</p>
+                            <p class="text-sm font-bold" x-text="formatRupiah(totals.totalMasuk)"></p>
+                        </div>
+                        <div>
+                            <p class="text-[9px] opacity-60 uppercase font-black mb-1">Total Keluar</p>
+                            <p class="text-sm font-bold" x-text="formatRupiah(totals.totalKeluar)"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 flex bg-slate-200/50 p-1 rounded-2xl">
+            <button @click="activeTab = 'riwayat'" :class="activeTab === 'riwayat' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'" class="flex-1 py-3 text-[10px] font-black uppercase rounded-xl transition-all">Riwayat</button>
+            <button @click="activeTab = 'grafik'; $nextTick(() => renderChart())" :class="activeTab === 'grafik' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'" class="flex-1 py-3 text-[10px] font-black uppercase rounded-xl transition-all">Grafik Tren</button>
+        </div>
+
+        <div x-show="activeTab === 'riwayat'" x-transition>
+            <div class="mt-6 space-y-3">
+                <div class="flex gap-2">
+                    <select x-model="combinedFilter" @change="applyCombinedFilter()" class="py-3.5 px-4 rounded-2xl bg-white border border-slate-200 text-[11px] font-black text-slate-700 outline-none flex-1 shadow-sm appearance-none">
+                        <option value="semua">Semua Riwayat</option>
+                        <option value="bulan">Bulan Ini</option>
+                        <optgroup label="Arsip Bulanan">
+                            <template x-for="opt in archiveOptions" :key="opt.id"><option :value="opt.id" x-text="opt.label"></option></template>
+                        </optgroup>
+                    </select>
+                    <button @click="exportToPDF()" class="bg-rose-600 text-white p-3.5 rounded-2xl shadow-lg active:scale-90"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /><path d="M9 15h6"/></svg></button>
+                </div>
+                <input type="text" x-model="searchQuery" @input="applySearch()" placeholder="Cari deskripsi..." class="w-full bg-white border border-slate-200 py-3.5 px-5 rounded-2xl text-sm font-bold shadow-sm outline-none">
+            </div>
+            <div class="mt-6 space-y-8">
+                <template x-for="group in groupedTransactions" :key="group.monthYear">
+                    <div class="space-y-3">
+                        <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2" x-text="group.monthYear"></h3>
+                        <div class="space-y-3">
+                            <template x-for="item in group.items" :key="item.id">
+                                <div @click="openDetailModal(item)" class="bg-white p-4 rounded-3xl border border-slate-50 shadow-sm flex items-center gap-4 active:scale-[0.98] cursor-pointer">
+                                    <div class="w-12 h-12 bg-slate-50 rounded-2xl flex flex-col items-center justify-center border shrink-0">
+                                        <span class="text-sm font-[800]" x-text="new Date(item.tanggal).getDate()"></span>
+                                        <span class="text-[8px] uppercase font-black text-emerald-600" x-text="monthNames[new Date(item.tanggal).getMonth()].substring(0,3)"></span>
+                                    </div>
+                                    <div class="flex-1 min-w-0"><h4 class="text-sm font-bold text-slate-800 truncate" x-text="item.deskripsi"></h4><span class="text-[9px] text-slate-300 font-bold uppercase" x-text="item.kategori"></span></div>
+                                    <div class="text-right"><p :class="item.jenis === 'Pemasukan' ? 'text-emerald-600' : 'text-rose-600'" class="text-sm font-[900]" x-text="(item.jenis === 'Pemasukan' ? '+' : '-') + formatRupiah(item.jumlah).replace('Rp', '')"></p></div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <div x-show="activeTab === 'grafik'" x-transition x-cloak class="mt-6 space-y-6">
+            <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                <div class="flex justify-end items-center mb-4 px-2">
+                    <div class="flex gap-3">
+                        <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="text-[8px] font-black uppercase text-slate-400">Masuk</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span class="text-[8px] font-black uppercase text-slate-400">Keluar</span></div>
+                    </div>
+                </div>
+                
+                <div class="relative h-[220px]">
+                    <canvas id="trendChart"></canvas>
+                </div>
+
+                <div class="month-selector-grid">
+                    <template x-for="(month, index) in chartMonths" :key="index">
+                        <div class="month-btn" 
+                             :class="selectedMonthLabel === `${monthNames[month.m]} ${month.y}` ? 'active-month' : ''"
+                             @click="updateCategoryDetail(month.m, month.y)" 
+                             x-text="month.label">
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                <h4 class="text-center text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] mb-6">
+                    Detail Kategori: <span class="text-emerald-600" x-text="selectedMonthLabel"></span>
+                </h4>
+                <div class="space-y-6">
+                    <div>
+                        <p class="text-[9px] font-black text-emerald-600 uppercase mb-3 border-b pb-1">Ringkasan Pemasukan</p>
+                        <div class="space-y-2">
+                            <template x-for="(val, cat) in categoryData.masuk" :key="cat">
+                                <div class="flex justify-between items-center bg-emerald-50/50 p-3 rounded-2xl">
+                                    <span class="text-xs font-bold text-slate-700" x-text="cat"></span>
+                                    <span class="text-xs font-black text-emerald-700" x-text="formatRupiah(val)"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-[9px] font-black text-rose-600 uppercase mb-3 border-b pb-1">Ringkasan Pengeluaran</p>
+                        <div class="space-y-2">
+                            <template x-for="(val, cat) in categoryData.keluar" :key="cat">
+                                <div class="flex justify-between items-center bg-rose-50/50 p-3 rounded-2xl">
+                                    <span class="text-xs font-bold text-slate-700" x-text="cat"></span>
+                                    <span class="text-xs font-black text-rose-700" x-text="formatRupiah(val)"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="showEditModal" class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" x-cloak x-transition>
+        <div class="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl overflow-y-auto max-h-[90vh]" @click.away="showEditModal = false">
+            <h3 class="text-xl font-black text-center mb-6 text-slate-800 uppercase">Ubah Data</h3>
+            <div class="space-y-4">
+                <div><label class="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1 block">Tanggal</label><input type="date" x-model="editingData.tanggal" class="w-full p-3.5 bg-slate-50 rounded-2xl border-none font-bold outline-none ring-1 ring-slate-100"></div>
+                <div><label class="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1 block">Deskripsi</label><input type="text" x-model="editingData.deskripsi" class="w-full p-3.5 bg-slate-50 rounded-2xl font-bold outline-none ring-1 ring-slate-100 border-none"></div>
+                <div><label class="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1 block">Jumlah (Rp)</label><input type="number" x-model="editingData.jumlah" class="w-full p-3.5 bg-slate-50 rounded-2xl font-black text-emerald-600 outline-none ring-1 ring-slate-100 border-none text-xl"></div>
+            </div>
+            <div class="flex gap-3 mt-8">
+                <button @click="showEditModal = false" class="flex-1 py-4 font-black text-xs text-slate-400 uppercase">Batal</button>
+                <button @click="updateData()" class="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase shadow-lg">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="showDetailModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" x-cloak x-transition>
+        <div class="bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl p-6 text-center" @click.away="showDetailModal = false">
+            <template x-if="selectedItem.nota_url"><img :src="selectedItem.nota_url" @click="showFullscreen = true" class="img-thumbnail mb-4"></template>
+            <h3 class="text-3xl font-[900] text-slate-900 mb-1" x-text="formatRupiah(selectedItem.jumlah)"></h3>
+            <p class="text-sm text-slate-600 font-bold mb-4" x-text="selectedItem.deskripsi"></p>
+            <div class="flex gap-2">
+                <button @click="showDetailModal = false" class="flex-1 py-4 text-xs font-black text-slate-400 bg-slate-50 rounded-2xl uppercase">Tutup</button>
+                <button x-show="isAdmin" @click="openEditFromDetail()" class="flex-1 py-4 text-xs font-black text-blue-600 bg-blue-50 rounded-2xl uppercase">Ubah</button>
+            </div>
+            <button x-show="isAdmin" @click="deleteData(selectedItem.id)" class="w-full mt-2 py-3 text-[9px] font-black text-rose-500 uppercase tracking-widest">Hapus Transaksi</button>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://pfichwnfffjzibusofao.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmaWNod25mZmZqemlidXNvZmFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU4MzE0NjIsImV4cCI6MjA4MTQwNzQ2Mn0.Hp9nGeQEiNXnKoPkeSY2Qoey0HP2Er0E4TbwBe_y64c';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        Chart.register(ChartDataLabels);
+
+        function dashboard() {
+            return {
+                allData: [], filteredTransactions: [], groupedTransactions: [], 
+                searchQuery: '', archiveOptions: [], combinedFilter: 'bulan', 
+                totals: { saldo: 0, totalMasuk: 0, totalKeluar: 0 }, 
+                showDetailModal: false, showEditModal: false, showFullscreen: false,
+                selectedItem: {}, editingData: {}, isAdmin: false, clickCount: 0, showToast: false,
+                activeTab: 'riwayat', chart: null,
+                selectedMonthLabel: '', categoryData: { masuk: {}, keluar: {} },
+                chartMonths: [],
+                monthNames: ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"],
+
+                async init() { 
+                    await this.fetchData(); 
+                    const now = new Date();
+                    this.updateCategoryDetail(now.getMonth(), now.getFullYear());
+                },
+                
+                handleSecretClick() {
+                    this.clickCount++;
+                    if (this.clickCount >= 4) {
+                        this.isAdmin = !this.isAdmin; this.clickCount = 0;
+                        if (this.isAdmin) { this.showToast = true; setTimeout(() => this.showToast = false, 3000); }
+                    }
+                },
+
+                async fetchData() {
+                    const { data } = await _supabase.from('infaq').select('*').order('tanggal', { ascending: false });
+                    this.allData = data || [];
+                    this.generateArchiveOptions();
+                    this.applyCombinedFilter(); 
+                },
+
+                renderChart() {
+                    const ctx = document.getElementById('trendChart').getContext('2d');
+                    if(this.chart) this.chart.destroy();
+
+                    const last6Months = [];
+                    for(let i=5; i>=0; i--) {
+                        const d = new Date(); d.setMonth(d.getMonth() - i);
+                        const shortYear = d.getFullYear().toString().substring(2);
+                        last6Months.push({ m: d.getMonth(), y: d.getFullYear(), label: `${this.monthNames[d.getMonth()].substring(0,3)} '${shortYear}` });
+                    }
+                    this.chartMonths = last6Months;
+
+                    const masukData = last6Months.map(slot => {
+                        return this.allData.filter(i => {
+                            const d = new Date(i.tanggal);
+                            return d.getMonth() === slot.m && d.getFullYear() === slot.y && i.jenis === 'Pemasukan';
+                        }).reduce((acc, curr) => acc + Number(curr.jumlah), 0);
+                    });
+
+                    const keluarData = last6Months.map(slot => {
+                        return this.allData.filter(i => {
+                            const d = new Date(i.tanggal);
+                            return d.getMonth() === slot.m && d.getFullYear() === slot.y && i.jenis === 'Pengeluaran';
+                        }).reduce((acc, curr) => acc + Number(curr.jumlah), 0);
+                    });
+
+                    const formatSimple = (val) => {
+                        if (val === 0) return '';
+                        if (val >= 1000000) return (val / 1000000).toFixed(1).replace('.0', '') + 'jt';
+                        if (val >= 1000) return (val / 1000).toFixed(0) + 'rb';
+                        return val;
+                    };
+
+                    this.chart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: last6Months.map(s => s.label),
+                            datasets: [
+                                { label: 'Masuk', data: masukData, backgroundColor: '#10b981', borderRadius: 6, barPercentage: 0.85 },
+                                { label: 'Keluar', data: keluarData, backgroundColor: '#f43f5e', borderRadius: 6, barPercentage: 0.85 }
+                            ]
+                        },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            layout: { padding: { bottom: 0 } },
+                            plugins: {
+                                legend: { display: false },
+                                datalabels: {
+                                    anchor: 'end', align: 'top',
+                                    formatter: (v) => formatSimple(v),
+                                    font: { weight: '900', size: 9 },
+                                    color: (c) => c.datasetIndex === 0 ? '#059669' : '#e11d48'
+                                }
+                            },
+                            scales: { 
+                                y: { display: false, beginAtZero: true, grace: '20%' },
+                                x: { grid: { display: false }, ticks: { display: false } } 
+                            }
+                        }
+                    });
+                },
+
+                updateCategoryDetail(month, year) {
+                    this.selectedMonthLabel = `${this.monthNames[month]} ${year}`;
+                    const filtered = this.allData.filter(i => {
+                        const d = new Date(i.tanggal);
+                        return d.getMonth() === month && d.getFullYear() === year;
+                    });
+                    const summary = { masuk: {}, keluar: {} };
+                    filtered.forEach(item => {
+                        const cat = item.kategori || 'Lainnya';
+                        const type = item.jenis === 'Pemasukan' ? 'masuk' : 'keluar';
+                        summary[type][cat] = (summary[type][cat] || 0) + Number(item.jumlah);
+                    });
+                    this.categoryData = summary;
+                },
+
+                generateArchiveOptions() {
+                    const groups = new Set();
+                    this.allData.forEach(i => { const d = new Date(i.tanggal); groups.add(`${d.getMonth()}-${d.getFullYear()}`); });
+                    this.archiveOptions = Array.from(groups).map(g => {
+                        const [m, y] = g.split('-');
+                        return { id: g, label: `${this.monthNames[m]} ${y}`, month: m, year: y };
+                    }).sort((a,b) => b.year - a.year || b.month - a.month);
+                },
+
+                applyCombinedFilter() {
+                    if (this.combinedFilter === 'semua') this.filteredTransactions = [...this.allData];
+                    else if (this.combinedFilter === 'bulan') {
+                        const now = new Date();
+                        this.filteredTransactions = this.allData.filter(i => { 
+                            const d = new Date(i.tanggal); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); 
+                        });
+                    } else {
+                        const [m, y] = this.combinedFilter.split('-');
+                        this.filteredTransactions = this.allData.filter(i => { const d = new Date(i.tanggal); return d.getMonth() == m && d.getFullYear() == y; });
+                    }
+                    this.calculate(); this.applySearch();
+                },
+
+                applySearch() {
+                    const q = this.searchQuery.toLowerCase();
+                    const searched = this.filteredTransactions.filter(i => i.deskripsi.toLowerCase().includes(q));
+                    this.groupTransactions(searched);
+                },
+
+                groupTransactions(data) {
+                    const groups = {};
+                    data.forEach(item => {
+                        const date = new Date(item.tanggal);
+                        const key = `${this.monthNames[date.getMonth()]} ${date.getFullYear()}`;
+                        if (!groups[key]) groups[key] = [];
+                        groups[key].push(item);
+                    });
+                    this.groupedTransactions = Object.keys(groups).map(key => ({ monthYear: key, items: groups[key] }));
+                },
+
+                calculate() {
+                    let m = 0, k = 0;
+                    this.allData.forEach(item => {
+                        const jml = Number(item.jumlah);
+                        if (item.jenis === 'Pemasukan') m += jml; else if (item.jenis === 'Pengeluaran') k += jml;
+                    });
+                    this.totals = { saldo: m - k, totalMasuk: m, totalKeluar: k };
+                },
+
+                openDetailModal(item) { this.selectedItem = item; this.showDetailModal = true; },
+                openEditFromDetail() { this.editingData = { ...this.selectedItem }; this.showDetailModal = false; setTimeout(() => this.showEditModal = true, 300); },
+
+                async updateData() {
+                    const { error } = await _supabase.from('infaq').update({ tanggal: this.editingData.tanggal, deskripsi: this.editingData.deskripsi, jumlah: this.editingData.jumlah }).eq('id', this.editingData.id);
+                    if (!error) { this.showEditModal = false; await this.fetchData(); }
+                },
+
+                async deleteData(id) {
+                    if (confirm('Hapus transaksi ini?')) {
+                        const { error } = await _supabase.from('infaq').delete().eq('id', id);
+                        if (!error) { this.showDetailModal = false; await this.fetchData(); }
+                    }
+                },
+
+                formatRupiah(v) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(v || 0); },
+
+                exportToPDF() {
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+
+                    // --- HEADER ---
+                    doc.setFont("helvetica", "bold");
+                    doc.setFontSize(16);
+                    doc.setTextColor(30, 41, 59); // Dark Slate
+                    doc.text("LAPORAN TRANSAKSI INFAQ JUM'AT MASJID AL IKHLAS JASEM", 14, 15);
+
+                    // --- PERIODE & TANGGAL CETAK ---
+                    doc.setFontSize(10);
+                    doc.setFont("helvetica", "normal");
+                    doc.setTextColor(100, 116, 139); // Gray
+                    
+                    let periodeLabel = "Semua Periode";
+                    if (this.combinedFilter === 'bulan') {
+                        const now = new Date();
+                        periodeLabel = `${this.monthNames[now.getMonth()]} ${now.getFullYear()}`;
+                    } else if (this.combinedFilter !== 'semua') {
+                        const opt = this.archiveOptions.find(o => o.id === this.combinedFilter);
+                        periodeLabel = opt ? opt.label : this.combinedFilter;
+                    }
+
+                    const tglCetak = new Date().toLocaleDateString('id-ID');
+                    doc.text(`Periode: ${periodeLabel}  |  Tanggal Cetak: ${tglCetak}`, 14, 22);
+
+                    // --- DATA TABEL ---
+                    const sorted = [...this.filteredTransactions].sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal));
+                    let totalM = 0;
+                    let totalK = 0;
+
+                    const rows = sorted.map(i => {
+                        const jml = Number(i.jumlah);
+                        if (i.jenis === 'Pemasukan') totalM += jml; else totalK += jml;
+                        
+                        return [
+                            new Date(i.tanggal).toLocaleDateString('id-ID'),
+                            i.deskripsi.toUpperCase(),
+                            i.jenis,
+                            this.formatRupiah(jml).replace('Rp', '').trim()
+                        ];
+                    });
+
+                    // --- GENERATE TABEL (Persis Gambar) ---
+                    doc.autoTable({
+                        head: [['TANGGAL', 'KETERANGAN TRANSAKSI', 'JENIS', 'NOMINAL (IDR)']],
+                        body: rows,
+                        startY: 30,
+                        theme: 'striped',
+                        headStyles: { 
+                            fillColor: [51, 65, 85], // Warna dark blue-grey sesuai gambar
+                            textColor: [255, 255, 255],
+                            fontStyle: 'bold',
+                            halign: 'center'
+                        },
+                        bodyStyles: { 
+                            fontSize: 8,
+                            textColor: [51, 65, 85]
+                        },
+                        columnStyles: {
+                            0: { halign: 'center', cellWidth: 25 },
+                            1: { halign: 'left' },
+                            2: { halign: 'center', cellWidth: 30 },
+                            3: { halign: 'right', cellWidth: 35 }
+                        },
+                        alternateRowStyles: {
+                            fillColor: [248, 250, 252]
+                        }
+                    });
+
+                    // --- TOTAL SUMMARY (Di Bawah Tabel) ---
+                    const finalY = doc.lastAutoTable.finalY + 10;
+                    const marginR = 196; // Margin kanan
+
+                    // Garis pemisah tipis
+                    doc.setDrawColor(226, 232, 240);
+                    doc.line(120, finalY - 5, marginR, finalY - 5);
+
+                    doc.setFont("helvetica", "bold");
+                    doc.setFontSize(10);
+                    doc.setTextColor(30, 41, 59);
+
+                    // Baris Total Pemasukan
+                    doc.text("TOTAL PEMASUKAN", 120, finalY);
+                    doc.text(this.formatRupiah(totalM), marginR, finalY, { align: 'right' });
+
+                    // Baris Total Pengeluaran
+                    doc.text("TOTAL PENGELUARAN", 120, finalY + 7);
+                    doc.text(this.formatRupiah(totalK), marginR, finalY + 7, { align: 'right' });
+
+                    doc.save(`Laporan_Infaq_${periodeLabel}.pdf`);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
