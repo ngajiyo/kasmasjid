@@ -86,7 +86,9 @@
                             <template x-for="opt in archiveOptions" :key="opt.id"><option :value="opt.id" x-text="opt.label"></option></template>
                         </optgroup>
                     </select>
-                    <button @click="exportToPDF()" class="bg-rose-600 text-white p-3.5 rounded-2xl shadow-lg active:scale-90"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /><path d="M9 15h6"/></svg></button>
+                    <template x-if="combinedFilter !== 'semua' && combinedFilter !== 'bulan'">
+                        <button @click="exportToPDF()" class="bg-rose-600 text-white p-3.5 rounded-2xl shadow-lg active:scale-90"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /><path d="M9 15h6"/></svg></button>
+                    </template>
                 </div>
                 <input type="text" x-model="searchQuery" @input="applySearch()" placeholder="Cari deskripsi..." class="w-full bg-white border border-slate-200 py-3.5 px-5 rounded-2xl text-sm font-bold shadow-sm outline-none">
             </div>
@@ -211,7 +213,7 @@
     </div>
 
     <div x-show="showDetailModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" x-cloak x-transition>
-        <div class="bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl p-6 text-center" @click.away="showDetailModal = false">
+        <div class="bg-white w-full max-sm rounded-[2.5rem] shadow-2xl p-6 text-center" @click.away="showDetailModal = false">
             <div class="flex flex-col items-center mb-4">
                 <div :class="selectedItem.jenis === 'Pemasukan' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'" 
                      class="w-12 h-12 rounded-2xl flex items-center justify-center mb-2">
@@ -471,6 +473,8 @@
                 formatRupiah(v) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(v || 0); },
 
                 exportToPDF() {
+                    if (this.combinedFilter === 'semua' || this.combinedFilter === 'bulan') return;
+
                     const { jsPDF } = window.jspdf;
                     const doc = new jsPDF();
                     doc.setFont("helvetica", "bold");
