@@ -212,6 +212,20 @@
 
     <div x-show="showDetailModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" x-cloak x-transition>
         <div class="bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl p-6 text-center" @click.away="showDetailModal = false">
+            <div class="flex flex-col items-center mb-4">
+                <div :class="selectedItem.jenis === 'Pemasukan' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'" 
+                     class="w-12 h-12 rounded-2xl flex items-center justify-center mb-2">
+                    <template x-if="selectedItem.jenis === 'Pemasukan'">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </template>
+                    <template x-if="selectedItem.jenis !== 'Pemasukan'">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
+                    </template>
+                </div>
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest" 
+                   x-text="selectedItem.tanggal ? new Date(selectedItem.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : ''"></p>
+            </div>
+
             <template x-if="selectedItem.nota_url"><img :src="selectedItem.nota_url" @click="showFullscreen = true" class="img-thumbnail mb-4"></template>
             <h3 class="text-3xl font-[900] text-slate-900 mb-1" x-text="formatRupiah(selectedItem.jumlah)"></h3>
             <p class="text-sm text-slate-600 font-bold mb-4" x-text="selectedItem.deskripsi"></p>
@@ -524,4 +538,3 @@
     </script>
 </body>
 </html>
-
