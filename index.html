@@ -8,8 +8,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 
@@ -87,7 +85,14 @@
                         </optgroup>
                     </select>
                     <template x-if="combinedFilter !== 'semua' && combinedFilter !== 'bulan'">
-                        <button @click="exportToPDF()" class="bg-rose-600 text-white p-3.5 rounded-2xl shadow-lg active:scale-90"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /><path d="M9 15h6"/></svg></button>
+                        <button @click="exportToPDF()" class="bg-rose-600 text-white p-3.5 rounded-2xl shadow-lg active:scale-90 flex items-center justify-center min-w-[50px]">
+                            <template x-if="!pdfLoading">
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /><path d="M9 15h6"/></svg>
+                            </template>
+                            <template x-if="pdfLoading">
+                                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            </template>
+                        </button>
                     </template>
                 </div>
                 <input type="text" x-model="searchQuery" @input="applySearch()" placeholder="Cari deskripsi..." class="w-full bg-white border border-slate-200 py-3.5 px-5 rounded-2xl text-sm font-bold shadow-sm outline-none">
@@ -105,12 +110,8 @@
                                         <span class="text-[7px] uppercase font-black text-emerald-600 mt-0.5" x-text="monthNames[new Date(item.tanggal).getMonth()].substring(0,3)"></span>
                                     </div>
                                     <div class="flex-1 min-w-0">
-                                        <h4 class="text-[13px] font-bold text-slate-800 truncate leading-[1.15] mb-0"
-    x-text="item.deskripsi"></h4>
-
-<span class="text-[8px] text-slate-400 font-bold uppercase tracking-wider -mt-0.5 block"
-      x-text="item.kategori"></span>
-
+                                        <h4 class="text-[13px] font-bold text-slate-800 truncate leading-[1.15] mb-0" x-text="item.deskripsi"></h4>
+                                        <span class="text-[8px] text-slate-400 font-bold uppercase tracking-wider -mt-0.5 block" x-text="item.kategori"></span>
                                     </div>
                                     <div class="text-right">
                                         <p :class="item.jenis === 'Pemasukan' ? 'text-emerald-600' : 'text-rose-600'" class="text-[13px] font-[900]" x-text="(item.jenis === 'Pemasukan' ? '+' : '-') + formatRupiah(item.jumlah).replace('Rp', '')"></p>
@@ -217,17 +218,12 @@
             <div class="flex flex-col items-center mb-4">
                 <div :class="selectedItem.jenis === 'Pemasukan' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'" 
                      class="w-12 h-12 rounded-2xl flex items-center justify-center mb-2">
-                    <template x-if="selectedItem.jenis === 'Pemasukan'">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
-                    </template>
-                    <template x-if="selectedItem.jenis !== 'Pemasukan'">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
-                    </template>
+                    <template x-if="selectedItem.jenis === 'Pemasukan'"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg></template>
+                    <template x-if="selectedItem.jenis !== 'Pemasukan'"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg></template>
                 </div>
                 <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest" 
                    x-text="selectedItem.tanggal ? new Date(selectedItem.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : ''"></p>
             </div>
-
             <template x-if="selectedItem.nota_url"><img :src="selectedItem.nota_url" @click="showFullscreen = true" class="img-thumbnail mb-4"></template>
             <h3 class="text-3xl font-[900] text-slate-900 mb-1" x-text="formatRupiah(selectedItem.jumlah)"></h3>
             <p class="text-sm text-slate-600 font-bold mb-4" x-text="selectedItem.deskripsi"></p>
@@ -258,6 +254,8 @@
                 chartMonths: [],
                 monthNames: ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"],
                 isUploading: false,
+                pdfLoading: false, // Tambahan untuk state loading PDF
+                jsPdfLoaded: false, // Flag apakah script sudah dimuat
 
                 async init() { 
                     await this.fetchData(); 
@@ -280,38 +278,52 @@
                     this.applyCombinedFilter(); 
                 },
 
+                async loadJsPdf() {
+                    if (this.jsPdfLoaded) return true;
+                    this.pdfLoading = true;
+                    try {
+                        const loadScript = (src) => new Promise((res, rej) => {
+                            const s = document.createElement('script');
+                            s.src = src;
+                            s.onload = res;
+                            s.onerror = rej;
+                            document.head.appendChild(s);
+                        });
+
+                        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+                        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js');
+                        
+                        this.jsPdfLoaded = true;
+                        return true;
+                    } catch (e) {
+                        console.error("Gagal memuat PDF library", e);
+                        return false;
+                    } finally {
+                        this.pdfLoading = false;
+                    }
+                },
+
                 async uploadFile(event) {
                     const file = event.target.files[0];
                     if (!file) return;
-
                     this.isUploading = true;
                     const fileExt = file.name.split('.').pop();
                     const fileName = `${Date.now()}-${Math.floor(Math.random() * 1000)}.${fileExt}`;
                     const filePath = `notamasjid/${fileName}`;
-
                     try {
-                        const { data, error } = await _supabase.storage
-                            .from('upload')
-                            .upload(filePath, file);
-
+                        const { data, error } = await _supabase.storage.from('upload').upload(filePath, file);
                         if (error) throw error;
-
-                        const { data: { publicUrl } } = _supabase.storage
-                            .from('upload')
-                            .getPublicUrl(filePath);
-
+                        const { data: { publicUrl } } = _supabase.storage.from('upload').getPublicUrl(filePath);
                         this.editingData.nota_url = publicUrl;
                     } catch (error) {
-                        alert('Gagal upload ke bucket upload: ' + error.message);
+                        alert('Gagal upload: ' + error.message);
                     } finally {
                         this.isUploading = false;
                     }
                 },
 
                 deleteAttachment() {
-                    if(confirm('Hapus lampiran gambar ini?')) {
-                        this.editingData.nota_url = null;
-                    }
+                    if(confirm('Hapus lampiran gambar ini?')) { this.editingData.nota_url = null; }
                 },
 
                 async updateData() {
@@ -321,44 +333,27 @@
                         jumlah: this.editingData.jumlah,
                         nota_url: this.editingData.nota_url 
                     }).eq('id', this.editingData.id);
-                    
-                    if (!error) { 
-                        this.showEditModal = false; 
-                        await this.fetchData(); 
-                    } else {
-                        alert('Gagal menyimpan: ' + error.message);
-                    }
+                    if (!error) { this.showEditModal = false; await this.fetchData(); }
                 },
 
                 renderChart() {
                     const ctx = document.getElementById('trendChart').getContext('2d');
                     if(this.chart) this.chart.destroy();
-
                     const last4Months = [];
                     for(let i=3; i>=0; i--) {
                         const d = new Date(); d.setMonth(d.getMonth() - i);
                         const shortYear = d.getFullYear().toString().substring(2);
-                        last4Months.push({ 
-                            m: d.getMonth(), 
-                            y: d.getFullYear(), 
-                            label: `${this.monthNames[d.getMonth()].substring(0,3)} '${shortYear}` 
-                        });
+                        last4Months.push({ m: d.getMonth(), y: d.getFullYear(), label: `${this.monthNames[d.getMonth()].substring(0,3)} '${shortYear}` });
                     }
                     this.chartMonths = last4Months;
-
-                    const masukData = last4Months.map(slot => {
-                        return this.allData.filter(i => {
-                            const d = new Date(i.tanggal);
-                            return d.getMonth() === slot.m && d.getFullYear() === slot.y && i.jenis === 'Pemasukan';
-                        }).reduce((acc, curr) => acc + Number(curr.jumlah), 0);
-                    });
-
-                    const keluarData = last4Months.map(slot => {
-                        return this.allData.filter(i => {
-                            const d = new Date(i.tanggal);
-                            return d.getMonth() === slot.m && d.getFullYear() === slot.y && i.jenis === 'Pengeluaran';
-                        }).reduce((acc, curr) => acc + Number(curr.jumlah), 0);
-                    });
+                    const masukData = last4Months.map(slot => this.allData.filter(i => {
+                        const d = new Date(i.tanggal);
+                        return d.getMonth() === slot.m && d.getFullYear() === slot.y && i.jenis === 'Pemasukan';
+                    }).reduce((acc, curr) => acc + Number(curr.jumlah), 0));
+                    const keluarData = last4Months.map(slot => this.allData.filter(i => {
+                        const d = new Date(i.tanggal);
+                        return d.getMonth() === slot.m && d.getFullYear() === slot.y && i.jenis === 'Pengeluaran';
+                    }).reduce((acc, curr) => acc + Number(curr.jumlah), 0));
 
                     const formatSimple = (val) => {
                         if (val === 0) return '';
@@ -388,10 +383,7 @@
                                     color: (c) => c.datasetIndex === 0 ? '#059669' : '#e11d48'
                                 }
                             },
-                            scales: { 
-                                y: { display: false, beginAtZero: true, grace: '25%' },
-                                x: { grid: { display: false }, ticks: { display: false } } 
-                            }
+                            scales: { y: { display: false, beginAtZero: true, grace: '25%' }, x: { grid: { display: false }, ticks: { display: false } } }
                         }
                     });
                 },
@@ -420,7 +412,12 @@
                     }).sort((a,b) => b.year - a.year || b.month - a.month);
                 },
 
-                applyCombinedFilter() {
+                async applyCombinedFilter() {
+                    // Logic pemuatan JS PDF saat filter arsip bulan aktif
+                    if (this.combinedFilter !== 'semua' && this.combinedFilter !== 'bulan') {
+                        this.loadJsPdf();
+                    }
+
                     if (this.combinedFilter === 'semua') this.filteredTransactions = [...this.allData];
                     else if (this.combinedFilter === 'bulan') {
                         const now = new Date();
@@ -472,8 +469,12 @@
 
                 formatRupiah(v) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(v || 0); },
 
-                exportToPDF() {
+                async exportToPDF() {
                     if (this.combinedFilter === 'semua' || this.combinedFilter === 'bulan') return;
+                    
+                    // Pastikan library sudah ter-load sebelum eksekusi
+                    const loaded = await this.loadJsPdf();
+                    if(!loaded) return alert("Gagal menyiapkan fitur PDF. Periksa koneksi.");
 
                     const { jsPDF } = window.jspdf;
                     const doc = new jsPDF();
@@ -487,30 +488,19 @@
                     doc.setTextColor(100, 116, 139);
                     
                     let periodeLabel = "Semua Periode";
-                    if (this.combinedFilter === 'bulan') {
-                        const now = new Date();
-                        periodeLabel = `${this.monthNames[now.getMonth()]} ${now.getFullYear()}`;
-                    } else if (this.combinedFilter !== 'semua') {
-                        const opt = this.archiveOptions.find(o => o.id === this.combinedFilter);
-                        periodeLabel = opt ? opt.label : this.combinedFilter;
-                    }
+                    const opt = this.archiveOptions.find(o => o.id === this.combinedFilter);
+                    periodeLabel = opt ? opt.label : this.combinedFilter;
 
                     const tglCetak = new Date().toLocaleDateString('id-ID');
                     doc.text(`Periode: ${periodeLabel}  |  Tanggal Cetak: ${tglCetak}`, 14, 22);
 
                     const sorted = [...this.filteredTransactions].sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal));
-                    let totalM = 0;
-                    let totalK = 0;
+                    let totalM = 0, totalK = 0;
 
                     const rows = sorted.map(i => {
                         const jml = Number(i.jumlah);
                         if (i.jenis === 'Pemasukan') totalM += jml; else totalK += jml;
-                        return [
-                            new Date(i.tanggal).toLocaleDateString('id-ID'),
-                            i.deskripsi.toUpperCase(),
-                            i.jenis,
-                            this.formatRupiah(jml).replace('Rp', '').trim()
-                        ];
+                        return [new Date(i.tanggal).toLocaleDateString('id-ID'), i.deskripsi.toUpperCase(), i.jenis, this.formatRupiah(jml).replace('Rp', '').trim()];
                     });
 
                     doc.autoTable({
@@ -525,16 +515,15 @@
                     });
 
                     const finalY = doc.lastAutoTable.finalY + 10;
-                    const marginR = 196;
                     doc.setDrawColor(226, 232, 240);
-                    doc.line(120, finalY - 5, marginR, finalY - 5);
+                    doc.line(120, finalY - 5, 196, finalY - 5);
                     doc.setFont("helvetica", "bold");
                     doc.setFontSize(10);
                     doc.setTextColor(30, 41, 59);
                     doc.text("TOTAL PEMASUKAN", 120, finalY);
-                    doc.text(this.formatRupiah(totalM), marginR, finalY, { align: 'right' });
+                    doc.text(this.formatRupiah(totalM), 196, finalY, { align: 'right' });
                     doc.text("TOTAL PENGELUARAN", 120, finalY + 7);
-                    doc.text(this.formatRupiah(totalK), marginR, finalY + 7, { align: 'right' });
+                    doc.text(this.formatRupiah(totalK), 196, finalY + 7, { align: 'right' });
                     doc.save(`Laporan_Infaq_${periodeLabel}.pdf`);
                 }
             }
