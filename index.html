@@ -213,27 +213,34 @@
         </div>
     </div>
 
-    <div x-show="showDetailModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" x-cloak x-transition>
-        <div class="bg-white w-full max-sm rounded-[2.5rem] shadow-2xl p-6 text-center" @click.away="showDetailModal = false">
-            <div class="flex flex-col items-center mb-4">
-                <div :class="selectedItem.jenis === 'Pemasukan' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'" 
-                     class="w-12 h-12 rounded-2xl flex items-center justify-center mb-2">
-                    <template x-if="selectedItem.jenis === 'Pemasukan'"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg></template>
-                    <template x-if="selectedItem.jenis !== 'Pemasukan'"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg></template>
-                </div>
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest" 
-                   x-text="selectedItem.tanggal ? new Date(selectedItem.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : ''"></p>
+    <div x-show="showDetailModal" class="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm" x-cloak x-transition>
+    <div class="bg-white w-full max-w-xs rounded-[2rem] shadow-2xl p-5 text-center relative overflow-hidden" @click.away="showDetailModal = false">
+        
+        <div class="flex flex-col items-center mb-3">
+            <div :class="selectedItem.jenis === 'Pemasukan' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'" 
+                 class="w-10 h-10 rounded-xl flex items-center justify-center mb-2">
+                <template x-if="selectedItem.jenis === 'Pemasukan'"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg></template>
+                <template x-if="selectedItem.jenis !== 'Pemasukan'"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg></template>
             </div>
-            <template x-if="selectedItem.nota_url"><img :src="selectedItem.nota_url" @click="showFullscreen = true" class="img-thumbnail mb-4"></template>
-            <h3 class="text-3xl font-[900] text-slate-900 mb-1" x-text="formatRupiah(selectedItem.jumlah)"></h3>
-            <p class="text-sm text-slate-600 font-bold mb-4" x-text="selectedItem.deskripsi"></p>
-            <div class="flex gap-2">
-                <button @click="showDetailModal = false" class="flex-1 py-4 text-xs font-black text-slate-400 bg-slate-50 rounded-2xl uppercase">Tutup</button>
-                <button x-show="isAdmin" @click="openEditFromDetail()" class="flex-1 py-4 text-xs font-black text-blue-600 bg-blue-50 rounded-2xl uppercase">Ubah</button>
-            </div>
-            <button x-show="isAdmin" @click="deleteData(selectedItem.id)" class="w-full mt-2 py-3 text-[9px] font-black text-rose-500 uppercase tracking-widest">Hapus Transaksi</button>
+            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest" 
+               x-text="selectedItem.tanggal ? new Date(selectedItem.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : ''"></p>
         </div>
+
+        <template x-if="selectedItem.nota_url">
+            <img :src="selectedItem.nota_url" @click="showFullscreen = true" class="w-full h-24 object-cover rounded-xl mb-3 border border-slate-100 cursor-pointer">
+        </template>
+
+        <h3 class="text-2xl font-[900] text-slate-900 mb-0.5" x-text="formatRupiah(selectedItem.jumlah)"></h3>
+        <p class="text-[11px] text-slate-500 font-bold mb-5 px-2 line-clamp-2" x-text="selectedItem.deskripsi"></p>
+        
+        <div class="flex gap-2">
+            <button @click="showDetailModal = false" class="flex-1 py-3 text-[10px] font-black text-slate-400 bg-slate-50 rounded-xl uppercase">Tutup</button>
+            <button x-show="isAdmin" @click="openEditFromDetail()" class="flex-1 py-3 text-[10px] font-black text-blue-600 bg-blue-50 rounded-xl uppercase">Ubah</button>
+        </div>
+
+        <button x-show="isAdmin" @click="deleteData(selectedItem.id)" class="w-full mt-3 py-1 text-[8px] font-black text-rose-400 uppercase tracking-widest opacity-60 hover:opacity-100">Hapus Transaksi</button>
     </div>
+</div>
 
     <script>
         const SUPABASE_URL = 'https://pfichwnfffjzibusofao.supabase.co';
