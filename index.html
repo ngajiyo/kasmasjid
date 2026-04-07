@@ -261,8 +261,8 @@
                 chartMonths: [],
                 monthNames: ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"],
                 isUploading: false,
-                pdfLoading: false, // Tambahan untuk state loading PDF
-                jsPdfLoaded: false, // Flag apakah script sudah dimuat
+                pdfLoading: false, 
+                jsPdfLoaded: false, 
 
                 async init() { 
                     await this.fetchData(); 
@@ -279,7 +279,13 @@
                 },
 
                 async fetchData() {
-                    const { data } = await _supabase.from('infaq').select('*').order('tanggal', { ascending: false });
+                    // Update: Ditambahkan urutan kedua berdasarkan ID (terbesar di atas) jika tanggal sama
+                    const { data } = await _supabase
+                        .from('infaq')
+                        .select('*')
+                        .order('tanggal', { ascending: false })
+                        .order('id', { ascending: false });
+
                     this.allData = data || [];
                     this.generateArchiveOptions();
                     this.applyCombinedFilter(); 
@@ -420,7 +426,6 @@
                 },
 
                 async applyCombinedFilter() {
-                    // Logic pemuatan JS PDF saat filter arsip bulan aktif
                     if (this.combinedFilter !== 'semua' && this.combinedFilter !== 'bulan') {
                         this.loadJsPdf();
                     }
@@ -479,7 +484,6 @@
                 async exportToPDF() {
                     if (this.combinedFilter === 'semua' || this.combinedFilter === 'bulan') return;
                     
-                    // Pastikan library sudah ter-load sebelum eksekusi
                     const loaded = await this.loadJsPdf();
                     if(!loaded) return alert("Gagal menyiapkan fitur PDF. Periksa koneksi.");
 
