@@ -126,11 +126,18 @@
 
         <div x-show="activeTab === 'grafik'" x-transition x-cloak class="mt-6 space-y-6">
             <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                <div class="flex justify-end items-center mb-4 px-2">
+                <!-- PERUBAHAN: ganti div flex justify-end menjadi flex justify-between dengan tombol navigasi -->
+                <div class="flex justify-between items-center mb-4 px-2">
+                    <button x-show="hasOlderData()" @click="navigateChart(4)" class="p-2 rounded-xl bg-slate-100 active:scale-90 transition-transform">
+                        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
                     <div class="flex gap-3">
                         <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="text-[8px] font-black uppercase text-slate-400">Masuk</span></div>
                         <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span class="text-[8px] font-black uppercase text-slate-400">Keluar</span></div>
                     </div>
+                    <button x-show="chartOffset > 0" @click="navigateChart(-4)" class="p-2 rounded-xl bg-slate-100 active:scale-90 transition-transform">
+                        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                    </button>
                 </div>
                 
                 <div class="relative h-[220px]">
@@ -259,6 +266,7 @@
                 activeTab: 'riwayat', chart: null,
                 selectedMonthLabel: '', categoryData: { masuk: {}, keluar: {} },
                 chartMonths: [],
+                chartOffset: 0, // PERUBAHAN: state baru untuk navigasi chart
                 monthNames: ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"],
                 isUploading: false,
                 pdfLoading: false, 
@@ -279,7 +287,6 @@
                 },
 
                 async fetchData() {
-                    // Update: Ditambahkan urutan kedua berdasarkan ID (terbesar di atas) jika tanggal sama
                     const { data } = await _supabase
                         .from('infaq')
                         .select('*')
@@ -349,12 +356,29 @@
                     if (!error) { this.showEditModal = false; await this.fetchData(); }
                 },
 
+                // PERUBAHAN: method baru untuk navigasi chart
+                navigateChart(direction) {
+                    this.chartOffset = Math.max(0, this.chartOffset + direction);
+                    this.$nextTick(() => this.renderChart());
+                },
+
+                hasOlderData() {
+                    if (!this.allData.length) return false;
+                    const oldest = this.allData.reduce((min, i) => new Date(i.tanggal) < new Date(min.tanggal) ? i : min);
+                    const oldestDate = new Date(oldest.tanggal);
+                    const firstShown = new Date();
+                    firstShown.setMonth(firstShown.getMonth() - 3 - this.chartOffset);
+                    return oldestDate < new Date(firstShown.getFullYear(), firstShown.getMonth(), 1);
+                },
+
                 renderChart() {
                     const ctx = document.getElementById('trendChart').getContext('2d');
                     if(this.chart) this.chart.destroy();
                     const last4Months = [];
                     for(let i=3; i>=0; i--) {
-                        const d = new Date(); d.setMonth(d.getMonth() - i);
+                        const d = new Date();
+                        // PERUBAHAN: tambahkan this.chartOffset pada perhitungan bulan
+                        d.setMonth(d.getMonth() - i - this.chartOffset);
                         const shortYear = d.getFullYear().toString().substring(2);
                         last4Months.push({ m: d.getMonth(), y: d.getFullYear(), label: `${this.monthNames[d.getMonth()].substring(0,3)} '${shortYear}` });
                     }
