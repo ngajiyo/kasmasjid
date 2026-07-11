@@ -182,6 +182,18 @@
                             </template>
                         </div>
                     </div>
+
+                    <!-- BARU: Tombol export PDF ringkasan bulanan, diletakkan di paling akhir card ini -->
+                    <button @click="exportCategorySummaryPDF()" :disabled="pdfSummaryLoading"
+                        class="w-full flex items-center justify-center gap-2 py-4 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg active:scale-[0.97] transition-transform disabled:opacity-50">
+                        <template x-if="!pdfSummaryLoading">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /><path d="M9 15h6"/></svg>
+                        </template>
+                        <template x-if="pdfSummaryLoading">
+                            <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        </template>
+                        <span x-text="pdfSummaryLoading ? 'Menyiapkan PDF...' : 'Export PDF Ringkasan Bulanan'"></span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -270,6 +282,7 @@
                 monthNames: ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"],
                 isUploading: false,
                 pdfLoading: false, 
+                pdfSummaryLoading: false, // BARU: loading state khusus tombol export ringkasan bulanan
                 jsPdfLoaded: false, 
 
                 async init() { 
@@ -300,7 +313,6 @@
 
                 async loadJsPdf() {
                     if (this.jsPdfLoaded) return true;
-                    this.pdfLoading = true;
                     try {
                         const loadScript = (src) => new Promise((res, rej) => {
                             const s = document.createElement('script');
@@ -318,8 +330,6 @@
                     } catch (e) {
                         console.error("Gagal memuat PDF library", e);
                         return false;
-                    } finally {
-                        this.pdfLoading = false;
                     }
                 },
 
@@ -508,7 +518,9 @@
                 async exportToPDF() {
                     if (this.combinedFilter === 'semua' || this.combinedFilter === 'bulan') return;
                     
+                    this.pdfLoading = true;
                     const loaded = await this.loadJsPdf();
+                    this.pdfLoading = false;
                     if(!loaded) return alert("Gagal menyiapkan fitur PDF. Periksa koneksi.");
 
                     const { jsPDF } = window.jspdf;
@@ -560,6 +572,99 @@
                     doc.text("TOTAL PENGELUARAN", 120, finalY + 7);
                     doc.text(this.formatRupiah(totalK), 196, finalY + 7, { align: 'right' });
                     doc.save(`Laporan_Infaq_${periodeLabel}.pdf`);
+                },
+
+                // BARU: export laporan ringkasan kategori (pemasukan & pengeluaran) untuk bulan yang sedang dipilih di tab Grafik Tren.
+                // jsPDF baru dimuat saat tombol ini benar-benar diklik (lazy load), jadi tidak menambah beban saat halaman pertama kali dibuka.
+                async exportCategorySummaryPDF() {
+                    const masukEntries = Object.entries(this.categoryData.masuk || {});
+                    const keluarEntries = Object.entries(this.categoryData.keluar || {});
+
+                    if (masukEntries.length === 0 && keluarEntries.length === 0) {
+                        alert('Tidak ada data ringkasan untuk periode ini.');
+                        return;
+                    }
+
+                    this.pdfSummaryLoading = true;
+                    const loaded = await this.loadJsPdf();
+                    this.pdfSummaryLoading = false;
+                    if (!loaded) return alert("Gagal menyiapkan fitur PDF. Periksa koneksi.");
+
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+
+                    doc.setFont("helvetica", "bold");
+                    doc.setFontSize(16);
+                    doc.setTextColor(30, 41, 59);
+                    doc.text("LAPORAN RINGKASAN BULANAN", 14, 15);
+                    doc.text("INFAQ JUM'AT MASJID AL IKHLAS JASEM", 14, 22);
+
+                    doc.setFontSize(10);
+                    doc.setFont("helvetica", "normal");
+                    doc.setTextColor(100, 116, 139);
+                    const tglCetak = new Date().toLocaleDateString('id-ID');
+                    doc.text(`Periode: ${this.selectedMonthLabel}  |  Tanggal Cetak: ${tglCetak}`, 14, 29);
+
+                    const totalMasuk = masukEntries.reduce((acc, [, v]) => acc + Number(v), 0);
+                    const totalKeluar = keluarEntries.reduce((acc, [, v]) => acc + Number(v), 0);
+                    const saldoBulan = totalMasuk - totalKeluar;
+
+                    let currentY = 37;
+
+                    // Tabel Ringkasan Pemasukan
+                    doc.setFont("helvetica", "bold");
+                    doc.setFontSize(11);
+                    doc.setTextColor(5, 150, 105);
+                    doc.text("RINGKASAN PEMASUKAN", 14, currentY);
+
+                    doc.autoTable({
+                        head: [['KATEGORI', 'NOMINAL (IDR)']],
+                        body: masukEntries.length
+                            ? masukEntries.map(([cat, v]) => [cat, this.formatRupiah(v).replace('Rp', '').trim()])
+                            : [['Tidak ada data', '-']],
+                        foot: [['TOTAL PEMASUKAN', this.formatRupiah(totalMasuk).replace('Rp', '').trim()]],
+                        startY: currentY + 4,
+                        theme: 'striped',
+                        headStyles: { fillColor: [5, 150, 105], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
+                        footStyles: { fillColor: [209, 250, 229], textColor: [5, 150, 105], fontStyle: 'bold', halign: 'right' },
+                        bodyStyles: { fontSize: 9, textColor: [51, 65, 85] },
+                        columnStyles: { 0: { halign: 'left' }, 1: { halign: 'right', cellWidth: 50 } },
+                        alternateRowStyles: { fillColor: [248, 250, 252] }
+                    });
+
+                    currentY = doc.lastAutoTable.finalY + 12;
+
+                    // Tabel Ringkasan Pengeluaran
+                    doc.setFont("helvetica", "bold");
+                    doc.setFontSize(11);
+                    doc.setTextColor(225, 29, 72);
+                    doc.text("RINGKASAN PENGELUARAN", 14, currentY);
+
+                    doc.autoTable({
+                        head: [['KATEGORI', 'NOMINAL (IDR)']],
+                        body: keluarEntries.length
+                            ? keluarEntries.map(([cat, v]) => [cat, this.formatRupiah(v).replace('Rp', '').trim()])
+                            : [['Tidak ada data', '-']],
+                        foot: [['TOTAL PENGELUARAN', this.formatRupiah(totalKeluar).replace('Rp', '').trim()]],
+                        startY: currentY + 4,
+                        theme: 'striped',
+                        headStyles: { fillColor: [225, 29, 72], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
+                        footStyles: { fillColor: [255, 228, 230], textColor: [225, 29, 72], fontStyle: 'bold', halign: 'right' },
+                        bodyStyles: { fontSize: 9, textColor: [51, 65, 85] },
+                        columnStyles: { 0: { halign: 'left' }, 1: { halign: 'right', cellWidth: 50 } },
+                        alternateRowStyles: { fillColor: [248, 250, 252] }
+                    });
+
+                    currentY = doc.lastAutoTable.finalY + 10;
+                    doc.setDrawColor(226, 232, 240);
+                    doc.line(120, currentY - 5, 196, currentY - 5);
+                    doc.setFont("helvetica", "bold");
+                    doc.setFontSize(11);
+                    doc.setTextColor(30, 41, 59);
+                    doc.text("SALDO BULAN INI", 120, currentY);
+                    doc.text(this.formatRupiah(saldoBulan), 196, currentY, { align: 'right' });
+
+                    doc.save(`Ringkasan_Bulanan_${this.selectedMonthLabel.replace(' ', '_')}.pdf`);
                 }
             }
         }
